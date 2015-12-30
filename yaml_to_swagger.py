@@ -33,19 +33,32 @@ def update_definitions(definitions, data, name, sample):
     }
 
     for key, value in data.items():
+        if value.get('required'):
+            required.append(key)
+
         d_type = types.get(value['type'], value['type'])
+
         if d_type in ['string', 'integer', 'boolean']:
             properties[key] = dict(type=d_type, example=sample.get(key, ''))
-
-            if value.get('required'):
-                required.append(key)
-
             for k, v in fields.items():
                 if value.get(k):
                     properties[key][v] = value[k]
         elif d_type == "object":
             properties[key] = {"$ref": "#/definitions/{0}".format(key)}
-            update_definitions(definitions, value['schema'], key, sample[key])
+            update_definitions(definitions, value['schema'], key, sample.get(key) or {})
+        elif d_type == "array":
+            if value.get('schema'):
+                if value['schema'].get('schema'):
+                    properties[key] = {"type": d_type, "items": {"$ref": "#/definitions/{0}".format(key)}}
+                    update_definitions(definitions, value['schema']['schema'], key, sample[key][0] if sample[key] else {})
+                else:
+                    d = {"type": d_type, "items": {"type": value["schema"]["type"]}}
+                    if sample[key]:
+                        d["items"]["example"] = sample[key][0]
+                    properties[key] = d
+            else:
+                properties[key] = {"type": d_type, "items": {"$ref": "#/definitions/{0}".format(key)}}
+                definitions[key] = {"type": "object"}
 
     definitions[name] = definition_schema
 
