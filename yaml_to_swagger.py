@@ -24,6 +24,7 @@ fields = {
 
 def convert_to_swagger_yaml(yaml_file, object_name):
     properties = {}
+    required = []
 
     swagger_yaml = {
         "swagger": "2.0",
@@ -35,7 +36,12 @@ def convert_to_swagger_yaml(yaml_file, object_name):
             "/": {
                 "get": {
                     "responses": {
-                        "200": {"description": "Successful Operation", "schema": {"$ref": "#/definitions/{0}".format(object_name)}}
+                        "200": {
+                            "description": "Successful Operation",
+                            "schema": {
+                                "$ref": "#/definitions/{0}".format(object_name)
+                            }
+                        }
                     }
                 }
             }
@@ -43,7 +49,7 @@ def convert_to_swagger_yaml(yaml_file, object_name):
         "definitions": {
             object_name: {
                 "type": "object",
-                "required": ['rating'],
+                "required": required,
                 "properties": properties
             }
         }
@@ -56,6 +62,9 @@ def convert_to_swagger_yaml(yaml_file, object_name):
         d_type = types.get(value['type'], value['type'])
         if d_type in ['string', 'integer', 'boolean']:
             properties[key] = dict(type=d_type, example=sample_object.get(key, ''))
+
+            if value.get('required'):
+                required.append(key)
 
             for k, v in fields.items():
                 if value.get(k):
