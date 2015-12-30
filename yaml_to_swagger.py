@@ -22,9 +22,36 @@ fields = {
 }
 
 
-def convert_to_swagger_yaml(yaml_file, object_name):
+def update_definitions(definitions, data, name, sample):
     properties = {}
     required = []
+
+    definition_schema = {
+        "type": "object",
+        "required": required,
+        "properties": properties
+    }
+
+    for key, value in data.items():
+        d_type = types.get(value['type'], value['type'])
+        if d_type in ['string', 'integer', 'boolean']:
+            properties[key] = dict(type=d_type, example=sample.get(key, ''))
+
+            if value.get('required'):
+                required.append(key)
+
+            for k, v in fields.items():
+                if value.get(k):
+                    properties[key][v] = value[k]
+        elif d_type == "object":
+            properties[key] = {"$ref": "#/definitions/{0}".format(key)}
+            update_definitions(definitions, value['schema'], key, sample[key])
+
+    definitions[name] = definition_schema
+
+
+def convert_to_swagger_yaml(yaml_file, object_name):
+    definitions = {}
 
     swagger_yaml = {
         "swagger": "2.0",
@@ -45,30 +72,15 @@ def convert_to_swagger_yaml(yaml_file, object_name):
                     }
                 }
             }
-        },
-        "definitions": {
-            object_name: {
-                "type": "object",
-                "required": required,
-                "properties": properties
-            }
         }
     }
 
     with open(yaml_file) as f:
         yaml_data = yaml.load(f)
 
-    for key, value in yaml_data.items():
-        d_type = types.get(value['type'], value['type'])
-        if d_type in ['string', 'integer', 'boolean']:
-            properties[key] = dict(type=d_type, example=sample_object.get(key, ''))
+    update_definitions(definitions, yaml_data, object_name, sample_object)
 
-            if value.get('required'):
-                required.append(key)
-
-            for k, v in fields.items():
-                if value.get(k):
-                    properties[key][v] = value[k]
+    swagger_yaml["definitions"] = definitions
 
     return swagger_yaml
 
