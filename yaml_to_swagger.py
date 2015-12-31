@@ -45,7 +45,10 @@ def update_definitions(definitions, data, name, sample):
                     properties[key][v] = value[k]
         elif d_type == "object":
             properties[key] = {"$ref": "#/definitions/{0}".format(key)}
-            update_definitions(definitions, value['schema'], key, sample.get(key) or {})
+            if value.get("schema"):
+                update_definitions(definitions, value['schema'], key, sample.get(key) or {})
+            else:
+                definitions[key] = {"type": "object"}
         elif d_type == "array":
             if value.get('schema'):
                 if value['schema'].get('schema'):
